@@ -1,6 +1,7 @@
 package org.example.solver;
 
 import org.example.exception.InfeasibleProblemException;
+import org.example.io.OutputWriter;
 import org.example.model.Fraction;
 import org.example.model.LinearProblem;
 import org.example.model.Solution;
@@ -36,6 +37,8 @@ public class JordanGaussSolver implements ISolver {
     @Override
     public Solution solve() throws InfeasibleProblemException {
         System.out.println("Поиск опорного решения методом Жордана-Гаусса...");
+        OutputWriter.printAugmentedMatrix("Начальная расширенная матрица:", matrix, n);
+        validateNoSignContradictions();
 
         int[] basis = new int[m];
         for (int i = 0; i < m; i++) {
@@ -47,16 +50,33 @@ public class JordanGaussSolver implements ISolver {
         for (int col = 0; col < n && pivotRow < m; col++) {
             int selectedRow = findPivotRow(pivotRow, col);
             if (selectedRow == -1) {
+                OutputWriter.printOperation("\nСтолбец x" + (col + 1) + " пропускается: нет подходящего ведущего элемента.");
                 continue;
             }
 
+            OutputWriter.printSection("Шаг Жордана-Гаусса #" + (pivotRow + 1));
+            OutputWriter.printOperation("Ведущий столбец: x" + (col + 1));
+            OutputWriter.printOperation("Выбран ведущий элемент в строке R" + (selectedRow + 1));
+
             if (selectedRow != pivotRow) {
+                OutputWriter.printOperation("Меняем местами строки R" + (pivotRow + 1) + " и R" + (selectedRow + 1));
                 swapRows(pivotRow, selectedRow);
+                OutputWriter.printAugmentedMatrix("Матрица после перестановки строк:", matrix, n);
             }
 
+            OutputWriter.printOperation(
+                    "Делим строку R" + (pivotRow + 1) + " на ведущий элемент " + matrix[pivotRow][col]
+            );
             normalizePivotRow(pivotRow, col);
+            OutputWriter.printAugmentedMatrix("После нормализации ведущей строки:", matrix, n);
+
+            OutputWriter.printOperation("Обнуляем остальные элементы в столбце x" + (col + 1));
             eliminateColumn(pivotRow, col);
+            validateNoSignContradictions();
+            OutputWriter.printAugmentedMatrix("Матрица после исключения переменной из остальных строк:", matrix, n);
+
             basis[pivotRow] = col;
+            OutputWriter.printOperation("В базис добавлена переменная x" + (col + 1));
             pivotRow++;
         }
 
@@ -68,6 +88,7 @@ public class JordanGaussSolver implements ISolver {
             );
         }
 
+        OutputWriter.printOperation("\nКанонический вид получен. Строим опорное решение по базисным переменным.");
         return buildSolution(basis);
     }
 
@@ -134,6 +155,36 @@ public class JordanGaussSolver implements ISolver {
         }
     }
 
+    private void validateNoSignContradictions() throws InfeasibleProblemException {
+        for (int row = 0; row < m; row++) {
+            boolean allNonNegative = true;
+            boolean allNonPositive = true;
+
+            for (int col = 0; col < n; col++) {
+                if (matrix[row][col].isNegative()) {
+                    allNonNegative = false;
+                }
+                if (matrix[row][col].isPositive()) {
+                    allNonPositive = false;
+                }
+            }
+
+            if (allNonNegative && matrix[row][n].isNegative()) {
+                throw new InfeasibleProblemException(
+                        "На первом этапе найдено противоречие: в строке " + (row + 1) +
+                                " левая часть не может быть отрицательной, а правая часть равна " + matrix[row][n]
+                );
+            }
+
+            if (allNonPositive && matrix[row][n].isPositive()) {
+                throw new InfeasibleProblemException(
+                        "На первом этапе найдено противоречие: в строке " + (row + 1) +
+                                " левая часть не может быть положительной, а правая часть равна " + matrix[row][n]
+                );
+            }
+        }
+    }
+
     private Solution buildSolution(int[] basis) throws InfeasibleProblemException {
         Fraction[] values = new Fraction[n];
         for (int i = 0; i < n; i++) {
@@ -149,8 +200,7 @@ public class JordanGaussSolver implements ISolver {
             Fraction value = matrix[row][n];
             if (value.isNegative()) {
                 throw new InfeasibleProblemException(
-                        "Найденное базисное решение не является допустимым: x" +
-                                (basisVar + 1) + " = " + value
+                        "Найденное базисное решение не является допустимым: x" + (basisVar + 1) + " = " + value
                 );
             }
 

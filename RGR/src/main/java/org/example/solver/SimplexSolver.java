@@ -2,6 +2,7 @@ package org.example.solver;
 
 import org.example.exception.InfeasibleProblemException;
 import org.example.exception.UnboundedProblemException;
+import org.example.io.OutputWriter;
 import org.example.model.Fraction;
 import org.example.model.LinearProblem;
 import org.example.model.Solution;
@@ -37,11 +38,14 @@ public class SimplexSolver implements ISolver {
 
         initializeCanonicalTableau();
         ensureFeasibleBasis();
+        validateNoSignContradictions();
+        OutputWriter.printSimplexTableau("Начальная симплекс-таблица:", tableau, basis, n);
 
         for (int iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
             System.out.println("\n--- Итерация " + (iteration + 1) + " ---");
 
             Fraction[] reducedCosts = computeReducedCosts();
+            OutputWriter.printReducedCosts(reducedCosts, basis);
             int enteringVar = findEnteringVariable(reducedCosts);
 
             if (enteringVar == -1) {
@@ -60,9 +64,15 @@ public class SimplexSolver implements ISolver {
             }
 
             System.out.println("Выходящая переменная: x" + (basis[leavingRow] + 1));
+            OutputWriter.printOperation(
+                    "Разрешающий элемент: a[" + (leavingRow + 1) + "," + (enteringVar + 1) + "] = " +
+                            tableau[leavingRow][enteringVar]
+            );
 
             performPivot(leavingRow, enteringVar);
             basis[leavingRow] = enteringVar;
+            validateNoSignContradictions();
+            OutputWriter.printSimplexTableau("Таблица после пересчета:", tableau, basis, n);
         }
 
         throw new InfeasibleProblemException(
@@ -125,6 +135,36 @@ public class SimplexSolver implements ISolver {
                 throw new InfeasibleProblemException(
                         "Начальное опорное решение недопустимо: базисная переменная x" +
                                 (basis[row] + 1) + " имеет отрицательное значение " + tableau[row][n]
+                );
+            }
+        }
+    }
+
+    private void validateNoSignContradictions() throws InfeasibleProblemException {
+        for (int row = 0; row < m; row++) {
+            boolean allNonNegative = true;
+            boolean allNonPositive = true;
+
+            for (int col = 0; col < n; col++) {
+                if (tableau[row][col].isNegative()) {
+                    allNonNegative = false;
+                }
+                if (tableau[row][col].isPositive()) {
+                    allNonPositive = false;
+                }
+            }
+
+            if (allNonNegative && tableau[row][n].isNegative()) {
+                throw new InfeasibleProblemException(
+                        "Во время решения найдено противоречие: в строке " + (row + 1) +
+                                " левая часть не может быть отрицательной, а правая часть равна " + tableau[row][n]
+                );
+            }
+
+            if (allNonPositive && tableau[row][n].isPositive()) {
+                throw new InfeasibleProblemException(
+                        "Во время решения найдено противоречие: в строке " + (row + 1) +
+                                " левая часть не может быть положительной, а правая часть равна " + tableau[row][n]
                 );
             }
         }
@@ -194,6 +234,10 @@ public class SimplexSolver implements ISolver {
                 continue;
             }
 
+            OutputWriter.printOperation(
+                    "Отношение для строки R" + (row + 1) + ": " + tableau[row][n] + " / " + coefficient + " = " + ratio
+            );
+
             if (minRatio == null || ratio.compareTo(minRatio) < 0) {
                 minRatio = ratio;
                 leavingRow = row;
@@ -216,6 +260,10 @@ public class SimplexSolver implements ISolver {
             throw new ArithmeticException("Ведущий элемент равен нулю");
         }
 
+        OutputWriter.printOperation(
+                "Нормализуем строку R" + (pivotRow + 1) + " делением на " + pivot
+        );
+
         for (int col = 0; col <= n; col++) {
             tableau[pivotRow][col] = tableau[pivotRow][col].divide(pivot);
         }
@@ -231,6 +279,10 @@ public class SimplexSolver implements ISolver {
             if (factor.isZero()) {
                 continue;
             }
+
+            OutputWriter.printOperation(
+                    "Обнуляем элемент в строке R" + (row + 1) + " с помощью коэффициента " + factor
+            );
 
             for (int col = 0; col <= n; col++) {
                 tableau[row][col] = tableau[row][col].subtract(factor.multiply(tableau[pivotRow][col]));
