@@ -37,7 +37,7 @@ public class JordanGaussSolver implements ISolver {
     @Override
     public Solution solve() throws InfeasibleProblemException {
         System.out.println("Поиск опорного решения методом Жордана-Гаусса...");
-        OutputWriter.printAugmentedMatrix("Начальная расширенная матрица:", matrix, n);
+        OutputWriter.printAugmentedMatrix("Начальная расширенная матрица:", matrix, n, null);
         validateNoSignContradictions();
 
         int[] basis = new int[m];
@@ -61,21 +61,21 @@ public class JordanGaussSolver implements ISolver {
             if (selectedRow != pivotRow) {
                 OutputWriter.printOperation("Меняем местами строки R" + (pivotRow + 1) + " и R" + (selectedRow + 1));
                 swapRows(pivotRow, selectedRow);
-                OutputWriter.printAugmentedMatrix("Матрица после перестановки строк:", matrix, n);
+                OutputWriter.printAugmentedMatrix("Матрица после перестановки строк:", matrix, n, basis);
             }
 
             OutputWriter.printOperation(
                     "Делим строку R" + (pivotRow + 1) + " на ведущий элемент " + matrix[pivotRow][col]
             );
             normalizePivotRow(pivotRow, col);
-            OutputWriter.printAugmentedMatrix("После нормализации ведущей строки:", matrix, n);
+            OutputWriter.printAugmentedMatrix("После нормализации ведущей строки:", matrix, n, basis);
 
             OutputWriter.printOperation("Обнуляем остальные элементы в столбце x" + (col + 1));
             eliminateColumn(pivotRow, col);
             validateNoSignContradictions();
-            OutputWriter.printAugmentedMatrix("Матрица после исключения переменной из остальных строк:", matrix, n);
 
             basis[pivotRow] = col;
+            OutputWriter.printAugmentedMatrix("Матрица после исключения переменной из остальных строк:", matrix, n, basis);
             OutputWriter.printOperation("В базис добавлена переменная x" + (col + 1));
             pivotRow++;
         }

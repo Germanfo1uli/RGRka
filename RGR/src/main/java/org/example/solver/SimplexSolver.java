@@ -39,7 +39,7 @@ public class SimplexSolver implements ISolver {
         initializeCanonicalTableau();
         ensureFeasibleBasis();
         validateNoSignContradictions();
-        OutputWriter.printSimplexTableau("Начальная симплекс-таблица:", tableau, basis, n);
+        OutputWriter.printSimplexTableau("Начальная симплекс-таблица:", tableau, basis, n, computeObjectiveValueFromBasis());
 
         for (int iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
             System.out.println("\n--- Итерация " + (iteration + 1) + " ---");
@@ -72,7 +72,7 @@ public class SimplexSolver implements ISolver {
             performPivot(leavingRow, enteringVar);
             basis[leavingRow] = enteringVar;
             validateNoSignContradictions();
-            OutputWriter.printSimplexTableau("Таблица после пересчета:", tableau, basis, n);
+            OutputWriter.printSimplexTableau("Таблица после пересчета:", tableau, basis, n, computeObjectiveValueFromBasis());
         }
 
         throw new InfeasibleProblemException(
@@ -235,7 +235,7 @@ public class SimplexSolver implements ISolver {
             }
 
             OutputWriter.printOperation(
-                    "Отношение для строки R" + (row + 1) + ": " + tableau[row][n] + " / " + coefficient + " = " + ratio
+                    "Отношение для строки x" + (basis[row] + 1) + ": " + tableau[row][n] + " / " + coefficient + " = " + ratio
             );
 
             if (minRatio == null || ratio.compareTo(minRatio) < 0) {
@@ -261,7 +261,7 @@ public class SimplexSolver implements ISolver {
         }
 
         OutputWriter.printOperation(
-                "Нормализуем строку R" + (pivotRow + 1) + " делением на " + pivot
+                "Нормализуем строку x" + (basis[pivotRow] + 1) + " делением на " + pivot
         );
 
         for (int col = 0; col <= n; col++) {
@@ -281,7 +281,7 @@ public class SimplexSolver implements ISolver {
             }
 
             OutputWriter.printOperation(
-                    "Обнуляем элемент в строке R" + (row + 1) + " с помощью коэффициента " + factor
+                    "Обнуляем элемент в строке x" + (basis[row] + 1) + " с помощью коэффициента " + factor
             );
 
             for (int col = 0; col <= n; col++) {
@@ -319,6 +319,19 @@ public class SimplexSolver implements ISolver {
         }
 
         return result;
+    }
+
+    private Fraction computeObjectiveValueFromBasis() {
+        Fraction[] values = new Fraction[n];
+        for (int i = 0; i < n; i++) {
+            values[i] = Fraction.ZERO;
+        }
+
+        for (int row = 0; row < m; row++) {
+            values[basis[row]] = tableau[row][n];
+        }
+
+        return computeObjectiveValue(values);
     }
 
     private Solution enrichWithAlternateSolutions(Solution solution, Fraction[] reducedCosts) {

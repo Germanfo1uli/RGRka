@@ -34,30 +34,7 @@ public class OutputWriter {
         }
     }
 
-    public static void printAugmentedMatrix(String title, Fraction[][] matrix, int variableCount) {
-        if (title != null && !title.isEmpty()) {
-            System.out.println("\n" + title);
-        }
-
-        StringBuilder header = new StringBuilder(padRight("", 6));
-        for (int col = 0; col < variableCount; col++) {
-            header.append(padLeft("x" + (col + 1), CELL_WIDTH));
-        }
-        header.append(" |").append(padLeft("b", CELL_WIDTH - 2));
-        System.out.println(header);
-        System.out.println("-".repeat(header.length()));
-
-        for (int row = 0; row < matrix.length; row++) {
-            StringBuilder line = new StringBuilder(padRight("R" + (row + 1), 6));
-            for (int col = 0; col < variableCount; col++) {
-                line.append(padLeft(matrix[row][col].toString(), CELL_WIDTH));
-            }
-            line.append(" |").append(padLeft(matrix[row][variableCount].toString(), CELL_WIDTH - 2));
-            System.out.println(line);
-        }
-    }
-
-    public static void printSimplexTableau(String title, Fraction[][] tableau, int[] basis, int variableCount) {
+    public static void printAugmentedMatrix(String title, Fraction[][] matrix, int variableCount, int[] basis) {
         if (title != null && !title.isEmpty()) {
             System.out.println("\n" + title);
         }
@@ -66,19 +43,51 @@ public class OutputWriter {
         for (int col = 0; col < variableCount; col++) {
             header.append(padLeft("x" + (col + 1), CELL_WIDTH));
         }
-        header.append(" |").append(padLeft("b", CELL_WIDTH - 2));
+        header.append(" |").append(padLeft("1", CELL_WIDTH - 2));
+        System.out.println(header);
+        System.out.println("-".repeat(header.length()));
+
+        for (int row = 0; row < matrix.length; row++) {
+            String rowLabel = resolveRowLabel(row, basis);
+            StringBuilder line = new StringBuilder(padRight(rowLabel, 8));
+            for (int col = 0; col < variableCount; col++) {
+                line.append(padLeft(matrix[row][col].toString(), CELL_WIDTH));
+            }
+            line.append(" |").append(padLeft(matrix[row][variableCount].toString(), CELL_WIDTH - 2));
+            System.out.println(line);
+        }
+    }
+
+    public static void printSimplexTableau(
+            String title,
+            Fraction[][] tableau,
+            int[] basis,
+            int variableCount,
+            Fraction objectiveValue
+    ) {
+        if (title != null && !title.isEmpty()) {
+            System.out.println("\n" + title);
+        }
+
+        StringBuilder header = new StringBuilder(padRight("Базис", 8));
+        for (int col = 0; col < variableCount; col++) {
+            header.append(padLeft("x" + (col + 1), CELL_WIDTH));
+        }
+        header.append(" |").append(padLeft("1", CELL_WIDTH - 2));
         System.out.println(header);
         System.out.println("-".repeat(header.length()));
 
         for (int row = 0; row < tableau.length; row++) {
-            String basisLabel = basis != null && row < basis.length ? "x" + (basis[row] + 1) : "R" + (row + 1);
-            StringBuilder line = new StringBuilder(padRight(basisLabel, 8));
+            String rowLabel = resolveRowLabel(row, basis);
+            StringBuilder line = new StringBuilder(padRight(rowLabel, 8));
             for (int col = 0; col < variableCount; col++) {
                 line.append(padLeft(tableau[row][col].toString(), CELL_WIDTH));
             }
             line.append(" |").append(padLeft(tableau[row][variableCount].toString(), CELL_WIDTH - 2));
             System.out.println(line);
         }
+
+        printObjectiveValue(objectiveValue);
     }
 
     public static void printReducedCosts(Fraction[] reducedCosts, int[] basis) {
@@ -93,8 +102,12 @@ public class OutputWriter {
             }
 
             String suffix = basic ? " (базисная)" : "";
-            System.out.println("Δx" + (col + 1) + " = " + reducedCosts[col] + suffix);
+            System.out.println("Оценка x" + (col + 1) + " = " + reducedCosts[col] + suffix);
         }
+    }
+
+    public static void printObjectiveValue(Fraction objectiveValue) {
+        System.out.println("Z = " + objectiveValue + " (~ " + String.format("%.6f", objectiveValue.toDouble()) + ")");
     }
 
     public static void printOperation(String description) {
@@ -107,8 +120,14 @@ public class OutputWriter {
             System.out.println("x" + (i + 1) + " = " + values[i] +
                     " (~ " + String.format("%.6f", values[i].toDouble()) + ")");
         }
-        System.out.println("Z = " + solution.getObjectiveValue() +
-                " (~ " + String.format("%.6f", solution.getObjectiveValue().toDouble()) + ")");
+        printObjectiveValue(solution.getObjectiveValue());
+    }
+
+    private static String resolveRowLabel(int row, int[] basis) {
+        if (basis != null && row < basis.length && basis[row] >= 0) {
+            return "x" + (basis[row] + 1);
+        }
+        return "R" + (row + 1);
     }
 
     private static String padLeft(String value, int width) {
