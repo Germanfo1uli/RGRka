@@ -107,7 +107,7 @@ public class OutputWriter {
     }
 
     public static void printObjectiveValue(Fraction objectiveValue) {
-        System.out.println("Z = " + objectiveValue + " (~ " + String.format("%.6f", objectiveValue.toDouble()) + ")");
+        System.out.println("Z = " + objectiveValue);
     }
 
     public static void printOperation(String description) {
@@ -117,8 +117,7 @@ public class OutputWriter {
     private static void printSolutionValues(Solution solution) {
         Fraction[] values = solution.getValues();
         for (int i = 0; i < values.length; i++) {
-            System.out.println("x" + (i + 1) + " = " + values[i] +
-                    " (~ " + String.format("%.6f", values[i].toDouble()) + ")");
+            System.out.println("x" + (i + 1) + " = " + values[i]);
         }
         printObjectiveValue(solution.getObjectiveValue());
     }
@@ -127,7 +126,7 @@ public class OutputWriter {
         if (basis != null && row < basis.length && basis[row] >= 0) {
             return "x" + (basis[row] + 1);
         }
-        return "R" + (row + 1);
+        return "-";
     }
 
     private static String padLeft(String value, int width) {

@@ -102,14 +102,11 @@ public class Solution {
         sb.append("Решение:\n");
         for (int i = 0; i < values.length; i++) {
             sb.append("x").append(i + 1).append(" = ")
-                    .append(values[i]).append(" (~ ")
-                    .append(String.format("%.6f", values[i].toDouble()))
-                    .append(")\n");
+                    .append(values[i])
+                    .append("\n");
         }
 
-        sb.append("Z = ").append(objectiveValue)
-                .append(" (~ ").append(String.format("%.6f", objectiveValue.toDouble()))
-                .append(")\n");
+        sb.append("Z = ").append(objectiveValue).append("\n");
 
         sb.append("Базисные переменные: ");
         for (int i = 0; i < basis.length; i++) {
