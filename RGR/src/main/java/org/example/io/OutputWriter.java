@@ -4,6 +4,8 @@ import org.example.model.Fraction;
 import org.example.model.LinearProblem;
 import org.example.model.Solution;
 
+import java.util.List;
+
 public class OutputWriter {
     private static final int CELL_WIDTH = 12;
 
@@ -26,10 +28,15 @@ public class OutputWriter {
         System.out.println(solution);
 
         if (solution.getType() == Solution.SolutionType.MULTIPLE_SOLUTIONS) {
-            int count = 1;
-            for (Solution alternate : solution.getAlternateSolutions()) {
-                System.out.println("\n--- Альтернативное решение #" + (++count) + " ---");
-                printSolutionValues(alternate);
+            List<Solution> alternates = solution.getAlternateSolutions();
+            if (!alternates.isEmpty()) {
+                System.out.println("\nНайденные угловые точки (для проверки):");
+                int idx = 2;
+                for (Solution alt : alternates) {
+                    System.out.println("--- Угловая точка #" + idx + " ---");
+                    printSolutionValues(alt);
+                    idx++;
+                }
             }
         }
     }

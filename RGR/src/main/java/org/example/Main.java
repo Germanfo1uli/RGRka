@@ -7,6 +7,7 @@ import org.example.io.OutputWriter;
 import org.example.model.LinearProblem;
 import org.example.model.Solution;
 import org.example.solver.JordanGaussSolver;
+import org.example.solver.PhaseOneSolver;
 import org.example.solver.SimplexSolver;
 
 import java.io.PrintStream;
@@ -82,8 +83,18 @@ public class Main {
 
             OutputWriter.printSection("Этап 1: Метод Жордана-Гаусса");
             JordanGaussSolver gaussSolver = new JordanGaussSolver(problem);
-            Solution initialSolution = gaussSolver.solve();
-            OutputWriter.printSolution(initialSolution, "Опорное решение");
+            Solution initialSolution;
+
+            try {
+                initialSolution = gaussSolver.solve();
+                OutputWriter.printSolution(initialSolution, "Опорное решение");
+            } catch (InfeasibleProblemException e) {
+                System.out.println("Жордан-Гаусс не дал допустимого базиса: " + e.getMessage());
+                System.out.println("Запускается перебор с искусственными переменными...");
+                PhaseOneSolver phaseOne = new PhaseOneSolver(problem);
+                initialSolution = phaseOne.findFeasibleBasis();
+                OutputWriter.printSolution(initialSolution, "Начальное допустимое решение (Phase I)");
+            }
 
             OutputWriter.printSection("Этап 2: Симплекс-метод");
             SimplexSolver simplexSolver = new SimplexSolver(problem, initialSolution);

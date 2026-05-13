@@ -20,16 +20,22 @@ public class SimplexSolver implements ISolver {
     private final Solution initialSolution;
     private final int m;
     private final int n;
+    private final boolean enrichAlternateSolutions;
 
     private Fraction[][] tableau;
     private int[] basis;
 
     public SimplexSolver(LinearProblem problem, Solution initialSolution) {
+        this(problem, initialSolution, true);
+    }
+
+    public SimplexSolver(LinearProblem problem, Solution initialSolution, boolean enrichAlternateSolutions) {
         this.problem = Objects.requireNonNull(problem, "Задача не может быть null");
         this.initialSolution = Objects.requireNonNull(initialSolution, "Начальное решение не может быть null");
         this.m = problem.getM();
         this.n = problem.getN();
         this.basis = initialSolution.getBasis().clone();
+        this.enrichAlternateSolutions = enrichAlternateSolutions;
     }
 
     @Override
@@ -51,6 +57,9 @@ public class SimplexSolver implements ISolver {
             if (enteringVar == -1) {
                 System.out.println("Оптимальное решение найдено!");
                 Solution solution = buildCurrentSolution();
+                if (!enrichAlternateSolutions) {
+                    return solution;
+                }
                 return enrichWithAlternateSolutions(solution, reducedCosts);
             }
 
@@ -65,8 +74,7 @@ public class SimplexSolver implements ISolver {
 
             System.out.println("Выходящая переменная: x" + (basis[leavingRow] + 1));
             OutputWriter.printOperation(
-                    "Разрешающий элемент: a[" + (leavingRow + 1) + "," + (enteringVar + 1) + "] = " +
-                            tableau[leavingRow][enteringVar]
+                    "Разрешающий элемент: a[" + (leavingRow + 1) + "][" + (enteringVar + 1) + "] = " + tableau[leavingRow][enteringVar]
             );
 
             performPivot(leavingRow, enteringVar);
@@ -298,9 +306,7 @@ public class SimplexSolver implements ISolver {
 
     private Solution buildCurrentSolution() {
         Fraction[] values = new Fraction[n];
-        for (int i = 0; i < n; i++) {
-            values[i] = Fraction.ZERO;
-        }
+        Arrays.fill(values, Fraction.ZERO);
 
         for (int row = 0; row < m; row++) {
             values[basis[row]] = tableau[row][n];
@@ -323,9 +329,7 @@ public class SimplexSolver implements ISolver {
 
     private Fraction computeObjectiveValueFromBasis() {
         Fraction[] values = new Fraction[n];
-        for (int i = 0; i < n; i++) {
-            values[i] = Fraction.ZERO;
-        }
+        Arrays.fill(values, Fraction.ZERO);
 
         for (int row = 0; row < m; row++) {
             values[basis[row]] = tableau[row][n];
@@ -357,6 +361,9 @@ public class SimplexSolver implements ISolver {
         Fraction[][] savedTableau = copyTableau();
         int[] savedBasis = basis.clone();
 
+        List<Solution> cornerPoints = new ArrayList<>();
+        cornerPoints.add(solution);
+
         for (int enteringVar : alternateEnteringVars) {
             restoreState(savedTableau, savedBasis);
 
@@ -369,12 +376,87 @@ public class SimplexSolver implements ISolver {
             basis[leavingRow] = enteringVar;
 
             Solution alternateSolution = buildCurrentSolution();
+            cornerPoints.add(alternateSolution);
             builder.addAlternateSolution(alternateSolution);
         }
 
         restoreState(savedTableau, savedBasis);
-        builder.generalForm(buildGeneralForm(alternateEnteringVars));
+
+        if (cornerPoints.size() >= 2) {
+            builder.generalForm(buildConvexCombinationForm(cornerPoints.get(0), cornerPoints.get(1)));
+        } else {
+            builder.generalForm(buildLambdaVectorForm(alternateEnteringVars));
+        }
+
         return builder.build();
+    }
+
+    private String buildConvexCombinationForm(Solution firstPoint, Solution secondPoint) {
+        Fraction[] v1 = firstPoint.getValues();
+        Fraction[] v2 = secondPoint.getValues();
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("Общий вид решения через параметр λ ∈ [0,1]:\n");
+        sb.append("X* = (");
+
+        for (int i = 0; i < v1.length; i++) {
+            sb.append(v1[i]).append("·λ + ").append(v2[i]).append("·(1-λ)");
+            if (i < v1.length - 1) {
+                sb.append("; ");
+            }
+        }
+
+        sb.append(")\n");
+        sb.append("Z = ").append(firstPoint.getObjectiveValue());
+        return sb.toString();
+    }
+
+    private String buildLambdaVectorForm(List<Integer> freeVariables) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Общий вид решения через параметры ");
+        for (int i = 0; i < freeVariables.size(); i++) {
+            sb.append("λ").append(i + 1);
+            if (i < freeVariables.size() - 1) {
+                sb.append(", ");
+            }
+        }
+        sb.append(" >= 0:\n");
+        sb.append("X* = (");
+
+        for (int variable = 0; variable < n; variable++) {
+            sb.append(buildCoordinateExpression(variable, freeVariables));
+            if (variable < n - 1) {
+                sb.append("; ");
+            }
+        }
+
+        sb.append(")\n");
+        sb.append("Z = ").append(computeObjectiveValue(buildCurrentSolution().getValues()));
+        return sb.toString();
+    }
+
+    private String buildCoordinateExpression(int variable, List<Integer> freeVariables) {
+        StringBuilder sb = new StringBuilder();
+        int basicRow = findBasicRow(variable);
+
+        if (basicRow != -1) {
+            sb.append(tableau[basicRow][n]);
+            for (int i = 0; i < freeVariables.size(); i++) {
+                int freeVariable = freeVariables.get(i);
+                Fraction coefficient = tableau[basicRow][freeVariable].negate();
+                if (!coefficient.isZero()) {
+                    appendParametricTerm(sb, coefficient, "λ" + (i + 1));
+                }
+            }
+            return sb.toString();
+        }
+
+        int freeIndex = freeVariables.indexOf(variable);
+        if (freeIndex != -1) {
+            return "λ" + (freeIndex + 1);
+        }
+
+        return "0";
     }
 
     private Fraction[][] copyTableau() {
@@ -390,34 +472,6 @@ public class SimplexSolver implements ISolver {
             System.arraycopy(savedTableau[row], 0, tableau[row], 0, savedTableau[row].length);
         }
         System.arraycopy(savedBasis, 0, basis, 0, savedBasis.length);
-    }
-
-    private String buildGeneralForm(List<Integer> freeVariables) {
-        StringBuilder sb = new StringBuilder();
-
-        for (int variable = 0; variable < n; variable++) {
-            sb.append("x").append(variable + 1).append(" = ");
-
-            int basicRow = findBasicRow(variable);
-            if (basicRow != -1) {
-                sb.append(tableau[basicRow][n]);
-                for (int freeVariable : freeVariables) {
-                    Fraction coefficient = tableau[basicRow][freeVariable];
-                    if (!coefficient.isZero()) {
-                        appendParametricTerm(sb, coefficient.negate(), "t" + (freeVariable + 1));
-                    }
-                }
-            } else if (freeVariables.contains(variable)) {
-                sb.append("t").append(variable + 1).append(", t").append(variable + 1).append(" >= 0");
-            } else {
-                sb.append("0");
-            }
-
-            sb.append("\n");
-        }
-
-        sb.append("Z = ").append(computeObjectiveValue(buildCurrentSolution().getValues()));
-        return sb.toString();
     }
 
     private int findBasicRow(int variable) {

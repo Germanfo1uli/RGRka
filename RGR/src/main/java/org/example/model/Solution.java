@@ -29,11 +29,11 @@ public class Solution {
     }
 
     public static class Builder {
-        private Fraction[] values;
-        private Fraction objectiveValue;
-        private int[] basis;
+        private final Fraction[] values;
+        private final Fraction objectiveValue;
+        private final int[] basis;
         private SolutionType type = SolutionType.OPTIMAL;
-        private List<Solution> alternateSolutions = new ArrayList<>();
+        private final List<Solution> alternateSolutions = new ArrayList<>();
         private String generalForm = "";
 
         public Builder(Fraction[] values, Fraction objectiveValue, int[] basis) {
@@ -101,13 +101,10 @@ public class Solution {
 
         sb.append("Решение:\n");
         for (int i = 0; i < values.length; i++) {
-            sb.append("x").append(i + 1).append(" = ")
-                    .append(values[i])
-                    .append("\n");
+            sb.append("x").append(i + 1).append(" = ").append(values[i]).append("\n");
         }
 
         sb.append("Z = ").append(objectiveValue).append("\n");
-
         sb.append("Базисные переменные: ");
         for (int i = 0; i < basis.length; i++) {
             sb.append("x").append(basis[i] + 1);
@@ -119,17 +116,8 @@ public class Solution {
 
         if (type == SolutionType.MULTIPLE_SOLUTIONS) {
             sb.append("\n!!! Задача имеет бесконечно много решений !!!\n");
-
             if (!generalForm.isEmpty()) {
-                sb.append("\nОбщий вид решений:\n").append(generalForm);
-                if (!generalForm.endsWith("\n")) {
-                    sb.append("\n");
-                }
-            }
-
-            if (!alternateSolutions.isEmpty()) {
-                sb.append("Найдено альтернативных решений: ")
-                        .append(alternateSolutions.size() + 1).append("\n");
+                sb.append("\n").append(generalForm).append("\n");
             }
         }
 
